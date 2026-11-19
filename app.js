@@ -220,48 +220,74 @@ function renderGames() {
   gamesListEl.innerHTML = "";
   emptyStateEl.hidden = filtered.length > 0;
 
+  const gamesByPlatform = new Map();
   filtered.forEach((game) => {
-    const card = document.createElement("article");
-    card.className = "game-card";
+    const platform = game.platform || "";
+    if (!gamesByPlatform.has(platform)) gamesByPlatform.set(platform, []);
+    gamesByPlatform.get(platform).push(game);
+  });
 
-    const statusLabel = game.status === "owned" ? "Lo tengo" : "Lo quiero";
-    const statusClass = game.status === "owned" ? "badge-owned" : "badge-wishlist";
-    const platformFamily = getPlatformFamily(game.platform);
-    const platformClass = platformFamily ? `badge-${platformFamily}` : "";
-    const exceptionBadge =
-      game.physicalIntegrity === "exception"
-        ? `<span class="badge badge-exception">Excepción</span>`
-        : "";
-    const notesHtml = game.notes
-      ? `<p class="game-notes">${escapeHtml(game.notes)}</p>`
-      : "";
-
-    const adminButtons = currentUser
-      ? `<div class="card-actions">
-          ${
-            game.status === "wishlist"
-              ? `<button class="btn btn-primary btn-sm action-acquire" data-id="${game.id}">✓ Ya lo tengo</button>`
-              : ""
-          }
-          <button class="btn btn-secondary btn-sm action-edit" data-id="${game.id}">Editar</button>
-        </div>`
-      : "";
-
-    card.innerHTML = `
-      <div class="game-info">
-        <div class="game-title">${escapeHtml(game.title)}</div>
-        <div class="badges">
-          <span class="badge badge-platform ${platformClass}">${escapeHtml(game.platform)}</span>
-          <span class="badge ${statusClass}">${statusLabel}</span>
-          ${exceptionBadge}
-        </div>
-        ${notesHtml}
+  gamesByPlatform.forEach((games, platform) => {
+    const section = document.createElement("section");
+    const headingId = `console-heading-${gamesListEl.childElementCount}`;
+    section.className = "console-section";
+    section.setAttribute("aria-labelledby", headingId);
+    section.innerHTML = `
+      <div class="console-header">
+        <h2 id="${headingId}" class="console-heading">${escapeHtml(platform || "Sin consola")}</h2>
+        <span class="console-count">${games.length} ${games.length === 1 ? "juego" : "juegos"}</span>
       </div>
-      ${adminButtons}
     `;
 
-    gamesListEl.appendChild(card);
+    const cards = document.createElement("div");
+    cards.className = "console-games";
+    games.forEach((game) => cards.appendChild(createGameCard(game)));
+    section.appendChild(cards);
+    gamesListEl.appendChild(section);
   });
+}
+
+function createGameCard(game) {
+  const card = document.createElement("article");
+  card.className = "game-card";
+
+  const statusLabel = game.status === "owned" ? "Lo tengo" : "Lo quiero";
+  const statusClass = game.status === "owned" ? "badge-owned" : "badge-wishlist";
+  const platformFamily = getPlatformFamily(game.platform);
+  const platformClass = platformFamily ? `badge-${platformFamily}` : "";
+  const exceptionBadge =
+    game.physicalIntegrity === "exception"
+      ? `<span class="badge badge-exception">Excepción</span>`
+      : "";
+  const notesHtml = game.notes
+    ? `<p class="game-notes">${escapeHtml(game.notes)}</p>`
+    : "";
+
+  const adminButtons = currentUser
+    ? `<div class="card-actions">
+        ${
+          game.status === "wishlist"
+            ? `<button class="btn btn-primary btn-sm action-acquire" data-id="${game.id}">✓ Ya lo tengo</button>`
+            : ""
+        }
+        <button class="btn btn-secondary btn-sm action-edit" data-id="${game.id}">Editar</button>
+      </div>`
+    : "";
+
+  card.innerHTML = `
+    <div class="game-info">
+      <div class="game-title">${escapeHtml(game.title)}</div>
+      <div class="badges">
+        <span class="badge badge-platform ${platformClass}">${escapeHtml(game.platform)}</span>
+        <span class="badge ${statusClass}">${statusLabel}</span>
+        ${exceptionBadge}
+      </div>
+      ${notesHtml}
+    </div>
+    ${adminButtons}
+  `;
+
+  return card;
 }
 
 // Eventos de búsqueda y filtros

@@ -172,10 +172,41 @@ h1 {
   padding: 0 1rem;
 }
 
-.games-list {
+.games-list,
+.console-games {
   display: flex;
   flex-direction: column;
+}
+
+.games-list {
+  gap: 1.75rem;
+}
+
+.console-games {
   gap: 0.6rem;
+}
+
+.console-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.75rem;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.5rem;
+  margin-bottom: 0.7rem;
+}
+
+.console-heading {
+  min-width: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.console-count {
+  flex-shrink: 0;
+  color: var(--text-muted);
+  font-size: 0.78rem;
 }
 
 .game-card {
