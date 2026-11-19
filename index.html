@@ -82,8 +82,9 @@
 
       <div class="field-row">
         <label class="field">
-          <span>Plataforma *</span>
-          <select id="field-platform" required></select>
+          <span id="platform-label">Plataforma *</span>
+          <select id="field-platform" aria-labelledby="platform-label" aria-describedby="platform-help" required></select>
+          <small id="platform-help">Opcional solo en «Lo quiero».</small>
         </label>
 
         <label class="field">
@@ -124,7 +125,7 @@
       <h2>Copia de seguridad e importación</h2>
       <button type="button" id="close-backup" class="close-btn">×</button>
     </div>
-    <p class="help-text">Descarga toda tu colección en JSON, incluidos los favoritos y el estado jugado, o importa un listado masivo con formato compatible.</p>
+    <p class="help-text">Descarga toda tu colección en JSON, incluidos los favoritos y el estado jugado, o importa un listado masivo con formato compatible. La plataforma puede estar vacía solo para juegos de «Lo quiero».</p>
     <div class="backup-actions">
       <button type="button" id="btn-export-json" class="btn btn-secondary">Descargar copia (.json)</button>
       <label class="btn btn-primary file-label">

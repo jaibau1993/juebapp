@@ -80,6 +80,7 @@ const modalTitle = document.getElementById("modal-title");
 const gameIdInput = document.getElementById("game-id");
 const titleInput = document.getElementById("field-title");
 const platformInput = document.getElementById("field-platform");
+const platformLabel = document.getElementById("platform-label");
 const statusInput = document.getElementById("field-status");
 const integrityInput = document.getElementById("field-integrity");
 const notesInput = document.getElementById("field-notes");
@@ -132,7 +133,9 @@ function initializePlatformControls() {
   const allButton = createFilterPill("Todas", true);
   allButton.dataset.family = "ALL";
   platformFiltersEl.replaceChildren(allButton);
-  platformInput.replaceChildren();
+  const undecidedOption = document.createElement("option");
+  undecidedOption.value = "";
+  platformInput.replaceChildren(undecidedOption);
 
   Object.entries(platformFamilies).forEach(([family, { label, consoles }]) => {
     const button = createFilterPill(label, false);
@@ -151,9 +154,21 @@ function initializePlatformControls() {
     });
     platformInput.appendChild(group);
   });
+  updatePlatformRequirement();
 }
 
 initializePlatformControls();
+
+function updatePlatformRequirement() {
+  const isWishlist = statusInput.value === "wishlist";
+  platformInput.required = !isWishlist;
+  platformLabel.textContent = isWishlist ? "Plataforma" : "Plataforma *";
+  const undecidedOption = platformInput.options[0];
+  undecidedOption.textContent = isWishlist ? "Por decidir" : "Elige consola";
+  undecidedOption.disabled = !isWishlist;
+}
+
+statusInput.addEventListener("change", updatePlatformRequirement);
 
 // Notificaciones Toast
 let toastTimer = null;
@@ -290,7 +305,7 @@ function renderGames() {
     section.setAttribute("aria-labelledby", headingId);
     section.innerHTML = `
       <div class="console-header">
-        <h2 id="${headingId}" class="console-heading">${escapeHtml(platform || "Sin consola")}</h2>
+        <h2 id="${headingId}" class="console-heading">${escapeHtml(platform || "Plataforma por decidir")}</h2>
         <span class="console-count">${games.length} ${games.length === 1 ? "juego" : "juegos"}</span>
       </div>
     `;
@@ -337,7 +352,7 @@ function createGameCard(game) {
     <div class="game-info">
       <div class="game-title">${escapeHtml(game.title)}</div>
       <div class="badges">
-        <span class="badge badge-platform ${platformClass}">${escapeHtml(game.platform)}</span>
+        <span class="badge badge-platform ${platformClass}">${escapeHtml(game.platform || "Por decidir")}</span>
         <span class="badge ${statusClass}">${statusLabel}</span>
         ${exceptionBadge}
       </div>
@@ -502,6 +517,19 @@ gamesListEl.addEventListener("click", async (e) => {
   const acquireBtn = e.target.closest(".action-acquire");
   if (acquireBtn) {
     const id = acquireBtn.dataset.id;
+    const game = allGames.find((game) => game.id === id);
+    if (!game) {
+      showToast("El juego ya no está disponible.");
+      return;
+    }
+    if (!game.platform) {
+      openModal(game);
+      modalTitle.textContent = "Elegir plataforma";
+      statusInput.value = "owned";
+      updatePlatformRequirement();
+      platformInput.focus();
+      return;
+    }
     try {
       await updateDoc(doc(db, "games", id), {
         status: "owned",
@@ -527,7 +555,7 @@ function openModal(game = null) {
     modalTitle.textContent = "Editar juego";
     gameIdInput.value = game.id;
     titleInput.value = game.title;
-    platformInput.value = game.platform;
+    platformInput.value = game.platform || "";
     statusInput.value = game.status;
     integrityInput.value = game.physicalIntegrity || "complete";
     notesInput.value = game.notes || "";
@@ -544,6 +572,7 @@ function openModal(game = null) {
     if (filterStatus !== "all") statusInput.value = filterStatus;
     deleteBtn.hidden = true;
   }
+  updatePlatformRequirement();
   gameModal.showModal();
 }
 
@@ -566,7 +595,7 @@ titleInput.addEventListener("input", () => {
     const list = matches
       .map(
         (m) =>
-          `• ${escapeHtml(m.title)} (${escapeHtml(m.platform)} — ${
+          `• ${escapeHtml(m.title)} (${escapeHtml(m.platform || "Por decidir")} — ${
             m.status === "owned" ? "Lo tengo" : "Lo quiero"
           })`
       )
@@ -584,6 +613,8 @@ document.getElementById("cancel-modal").addEventListener("click", () => gameModa
 
 gameForm.addEventListener("submit", async (e) => {
   e.preventDefault();
+  updatePlatformRequirement();
+  if (!gameForm.reportValidity()) return;
   const id = gameIdInput.value;
   const payload = {
     title: titleInput.value.trim(),
@@ -627,7 +658,7 @@ document.getElementById("close-backup").addEventListener("click", () => backupMo
 document.getElementById("btn-export-json").addEventListener("click", () => {
   const cleanData = allGames.map(({ title, platform, status, physicalIntegrity, notes, favorite, played }) => ({
     title,
-    platform,
+    platform: platform || "",
     status,
     favorite: favorite === true,
     played: played === true,
@@ -653,13 +684,21 @@ document.getElementById("input-import-json").addEventListener("change", async (e
     if (!Array.isArray(items)) throw new Error("El JSON debe ser una lista de juegos.");
 
     const batch = writeBatch(db);
-    items.forEach((item) => {
-      if (!item.title || !item.platform) return;
+    items.forEach((item, index) => {
+      if (!item?.title || !String(item.title).trim()) {
+        throw new Error(`El juego ${index + 1} necesita un título.`);
+      }
+      const title = String(item.title).trim();
+      const platform = String(item.platform || "").trim();
+      const status = item.status === "wishlist" ? "wishlist" : "owned";
+      if (status === "owned" && !platform) {
+        throw new Error(`El juego "${title}" necesita una plataforma porque figura como "Lo tengo".`);
+      }
       const newRef = doc(gamesCol);
       batch.set(newRef, {
-        title: String(item.title).trim(),
-        platform: String(item.platform).trim(),
-        status: item.status === "wishlist" ? "wishlist" : "owned",
+        title,
+        platform,
+        status,
         favorite: item.favorite === true,
         played: item.played === true,
         physicalIntegrity: item.physicalIntegrity === "exception" ? "exception" : "complete",

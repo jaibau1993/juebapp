@@ -565,6 +565,7 @@ h1 {
 
 .modal-actions {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
   gap: 0.5rem;
@@ -573,6 +574,8 @@ h1 {
 
 .right-actions {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 0.5rem;
   margin-left: auto;
 }
@@ -621,6 +624,10 @@ h1 {
 }
 
 @media (max-width: 430px) {
+  .field-row {
+    grid-template-columns: 1fr;
+  }
+
   .user-badge {
     padding: 0.15rem;
   }
