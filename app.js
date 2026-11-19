@@ -45,6 +45,7 @@ let filterStatus = "all";
 let filterFamily = "ALL";
 let filterPlatform = "ALL";
 let searchQuery = "";
+const pendingFavorites = new Set();
 
 // Referencias DOM
 const gamesListEl = document.getElementById("games-list");
@@ -321,6 +322,30 @@ function createGameCard(game) {
     ${adminButtons}
   `;
 
+  const isFavorite = game.favorite === true;
+  if (currentUser || isFavorite) {
+    const control = document.createElement(currentUser ? "button" : "span");
+    control.className = "favorite-control";
+    control.classList.toggle("is-favorite", isFavorite);
+    if (currentUser) {
+      control.type = "button";
+      control.classList.add("action-favorite");
+      control.dataset.id = game.id;
+      control.title = isFavorite ? "Quitar de favoritos" : "Añadir a favoritos";
+      control.setAttribute("aria-label", `${control.title}: ${game.title || "Juego"}`);
+      control.setAttribute("aria-pressed", String(isFavorite));
+      control.disabled = pendingFavorites.has(game.id);
+      control.setAttribute("aria-busy", String(control.disabled));
+      card.querySelector(".card-actions").prepend(control);
+    } else {
+      control.classList.add("favorite-indicator");
+      control.title = "Favorito";
+      control.setAttribute("role", "img");
+      control.setAttribute("aria-label", "Favorito");
+      card.appendChild(control);
+    }
+  }
+
   return card;
 }
 
@@ -387,6 +412,45 @@ consoleFiltersEl.addEventListener("click", (e) => {
 
 // Acciones rápidas en tarjetas
 gamesListEl.addEventListener("click", async (e) => {
+  const favoriteBtn = e.target.closest(".action-favorite");
+  if (favoriteBtn) {
+    const id = favoriteBtn.dataset.id;
+    if (pendingFavorites.has(id)) return;
+    if (!currentUser) {
+      showToast("Inicia sesión para cambiar favoritos.");
+      return;
+    }
+    const game = allGames.find((game) => game.id === id);
+    if (!game) {
+      showToast("El juego ya no está disponible.");
+      return;
+    }
+
+    const hadFocus = document.activeElement === favoriteBtn;
+    pendingFavorites.add(id);
+    favoriteBtn.disabled = true;
+    favoriteBtn.setAttribute("aria-busy", "true");
+    try {
+      await updateDoc(doc(db, "games", id), {
+        favorite: game.favorite !== true,
+        updatedAt: serverTimestamp()
+      });
+    } catch (err) {
+      alert("No se pudo actualizar el favorito: " + err.message);
+    } finally {
+      pendingFavorites.delete(id);
+      gamesListEl.querySelectorAll(".action-favorite").forEach((button) => {
+        if (button.dataset.id !== id) return;
+        button.disabled = false;
+        button.setAttribute("aria-busy", "false");
+        if (hadFocus && (document.activeElement === document.body || document.activeElement === favoriteBtn)) {
+          button.focus({ preventScroll: true });
+        }
+      });
+    }
+    return;
+  }
+
   const acquireBtn = e.target.closest(".action-acquire");
   if (acquireBtn) {
     const id = acquireBtn.dataset.id;
@@ -513,10 +577,11 @@ document.getElementById("btn-backup").addEventListener("click", () => {
 document.getElementById("close-backup").addEventListener("click", () => backupModal.close());
 
 document.getElementById("btn-export-json").addEventListener("click", () => {
-  const cleanData = allGames.map(({ title, platform, status, physicalIntegrity, notes }) => ({
+  const cleanData = allGames.map(({ title, platform, status, physicalIntegrity, notes, favorite }) => ({
     title,
     platform,
     status,
+    favorite: favorite === true,
     physicalIntegrity: physicalIntegrity || "complete",
     notes: notes || ""
   }));
@@ -546,6 +611,7 @@ document.getElementById("input-import-json").addEventListener("change", async (e
         title: String(item.title).trim(),
         platform: String(item.platform).trim(),
         status: item.status === "wishlist" ? "wishlist" : "owned",
+        favorite: item.favorite === true,
         physicalIntegrity: item.physicalIntegrity === "exception" ? "exception" : "complete",
         notes: item.notes ? String(item.notes).trim() : "",
         updatedAt: serverTimestamp()

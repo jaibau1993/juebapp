@@ -9,6 +9,7 @@
   --primary-text: #0f172a;
   --owned: #10b981;
   --wishlist: #a78bfa;
+  --favorite: #fbbf24;
   --warning-bg: rgba(245, 158, 11, 0.14);
   --warning-border: #f59e0b;
   --warning-text: #fcd34d;
@@ -229,6 +230,59 @@ h1 {
   font-weight: 600;
   font-size: 1rem;
   word-break: break-word;
+}
+
+.favorite-control {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 2.75rem;
+  height: 2.75rem;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.favorite-control::before {
+  content: "\2606";
+}
+
+.favorite-control.is-favorite {
+  color: var(--favorite);
+}
+
+.favorite-control.is-favorite::before {
+  content: "\2605";
+}
+
+.action-favorite {
+  align-self: flex-end;
+  cursor: pointer;
+}
+
+.action-favorite:hover {
+  background: var(--surface-hover);
+}
+
+.action-favorite:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.action-favorite:disabled {
+  cursor: progress;
+  opacity: 0.6;
+}
+
+.favorite-indicator {
+  align-self: flex-start;
+  width: 1.5rem;
+  height: 1.5rem;
 }
 
 .badges {
