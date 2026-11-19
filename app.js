@@ -32,6 +32,7 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 const gamesCol = collection(db, "games");
+const undecidedPlatformFilter = "UNDECIDED";
 const platformOrder = new Map(
   Object.values(platformFamilies)
     .flatMap(({ consoles }) => consoles)
@@ -154,6 +155,9 @@ function initializePlatformControls() {
     });
     platformInput.appendChild(group);
   });
+  const undecidedButton = createFilterPill("Por decidir", false);
+  undecidedButton.dataset.family = undecidedPlatformFilter;
+  platformFiltersEl.appendChild(undecidedButton);
   updatePlatformRequirement();
 }
 
@@ -279,7 +283,11 @@ function renderGames() {
     if (filterFavorites && game.favorite !== true) return false;
     if (filterPlayed === "played" && game.played !== true) return false;
     if (filterPlayed === "unplayed" && game.played === true) return false;
-    if (filterFamily !== "ALL" && getPlatformFamily(game.platform) !== filterFamily) return false;
+    if (filterFamily === undecidedPlatformFilter) {
+      if (game.status !== "wishlist" || game.platform) return false;
+    } else if (filterFamily !== "ALL" && getPlatformFamily(game.platform) !== filterFamily) {
+      return false;
+    }
     if (filterPlatform !== "ALL" && game.platform !== filterPlatform) return false;
     if (normQuery) {
       const haystack = `${normalize(game.title)} ${normalize(game.notes)}`;
@@ -447,10 +455,11 @@ platformFiltersEl.addEventListener("click", (e) => {
   });
 
   consoleFiltersEl.replaceChildren();
-  consoleFiltersEl.hidden = filterFamily === "ALL";
-  if (filterFamily !== "ALL") {
+  const family = platformFamilies[filterFamily];
+  consoleFiltersEl.hidden = !family;
+  if (family) {
     consoleFiltersEl.setAttribute("aria-label", `Consolas de ${pill.textContent}`);
-    ["ALL", ...platformFamilies[filterFamily].consoles].forEach((platform) => {
+    ["ALL", ...family.consoles].forEach((platform) => {
       const button = createFilterPill(platform === "ALL" ? "Todas" : platform, platform === "ALL");
       button.dataset.platform = platform;
       consoleFiltersEl.appendChild(button);
@@ -571,12 +580,15 @@ function openModal(game = null) {
     modalTitle.textContent = "Añadir juego";
     gameForm.reset();
     gameIdInput.value = "";
-    if (filterPlatform !== "ALL") {
+    if (filterStatus !== "all") statusInput.value = filterStatus;
+    if (filterFamily === undecidedPlatformFilter) {
+      platformInput.value = "";
+      statusInput.value = "wishlist";
+    } else if (filterPlatform !== "ALL") {
       platformInput.value = filterPlatform;
     } else if (filterFamily !== "ALL") {
       platformInput.value = platformFamilies[filterFamily].consoles[0];
     }
-    if (filterStatus !== "all") statusInput.value = filterStatus;
     deleteBtn.hidden = true;
   }
   updatePlatformRequirement();
