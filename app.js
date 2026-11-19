@@ -15,6 +15,7 @@ import {
   updateDoc,
   deleteDoc,
   doc,
+  runTransaction,
   serverTimestamp,
   writeBatch
 } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
@@ -63,6 +64,8 @@ let filterFavorites = false;
 let filterPlayed = "all";
 let searchQuery = "";
 const pendingGameFlags = new Set();
+const pendingAcquisitions = new Set();
+let modalAcquisition = null;
 
 // Referencias DOM
 const gamesListEl = document.getElementById("games-list");
@@ -87,6 +90,8 @@ const integrityInput = document.getElementById("field-integrity");
 const notesInput = document.getElementById("field-notes");
 const duplicateWarning = document.getElementById("duplicate-warning");
 const deleteBtn = document.getElementById("btn-delete");
+const gameSaveBtn = gameForm.querySelector('button[type="submit"]');
+const acquisitionNoticesEl = document.getElementById("acquisition-notices");
 
 const backupModal = document.getElementById("backup-modal");
 const loginBtn = document.getElementById("btn-login");
@@ -187,6 +192,99 @@ function showToast(message) {
   }, 3000);
 }
 
+function setAcquisitionPending(id, pending) {
+  if (pending) pendingAcquisitions.add(id);
+  else pendingAcquisitions.delete(id);
+  gamesListEl.querySelectorAll(".action-acquire, .action-edit").forEach((button) => {
+    if (button.dataset.id !== id) return;
+    button.disabled = pending;
+    button.setAttribute("aria-busy", String(pending));
+  });
+}
+
+function removeAcquisitionNotice(notice, restoreFocus = false) {
+  notice.remove();
+  acquisitionNoticesEl.hidden = acquisitionNoticesEl.childElementCount === 0;
+  if (restoreFocus && document.activeElement === document.body) {
+    const gameAction = Array.from(gamesListEl.querySelectorAll(".action-acquire, .action-edit"))
+      .find((button) => button.dataset.id === notice.dataset.gameId && !button.disabled);
+    const target = gameAction || acquisitionNoticesEl.querySelector(".undo-acquisition:not(:disabled)") || searchInput;
+    target.focus({ preventScroll: true });
+  }
+}
+
+function showAcquisitionUndo(game, acquiredPlatform, ownerUid, focusUndo = false) {
+  if (currentUser?.uid !== ownerUid) return;
+  Array.from(acquisitionNoticesEl.children)
+    .filter((notice) => notice.dataset.gameId === game.id)
+    .forEach((notice) => removeAcquisitionNotice(notice));
+
+  const notice = document.createElement("div");
+  notice.className = "acquisition-notice";
+  notice.dataset.gameId = game.id;
+  const message = document.createElement("p");
+  message.textContent = `«${game.title}» marcado como conseguido.`;
+  const actions = document.createElement("div");
+  actions.className = "acquisition-notice-actions";
+  const undoButton = document.createElement("button");
+  undoButton.type = "button";
+  undoButton.className = "btn btn-secondary undo-acquisition";
+  undoButton.textContent = "Deshacer";
+  undoButton.setAttribute("aria-label", `Deshacer conseguido: ${game.title}`);
+  const dismissButton = document.createElement("button");
+  dismissButton.type = "button";
+  dismissButton.className = "close-btn dismiss-acquisition";
+  dismissButton.textContent = "×";
+  dismissButton.setAttribute("aria-label", `Cerrar aviso de ${game.title}`);
+  dismissButton.addEventListener("click", () => {
+    removeAcquisitionNotice(notice, notice.contains(document.activeElement));
+  });
+  undoButton.addEventListener("click", async () => {
+    if (undoButton.disabled) return;
+    if (currentUser?.uid !== ownerUid) {
+      removeAcquisitionNotice(notice);
+      showToast("Inicia sesión con la misma cuenta para deshacer.");
+      return;
+    }
+    const hadFocus = document.activeElement === undoButton;
+    undoButton.disabled = true;
+    dismissButton.disabled = true;
+    undoButton.setAttribute("aria-busy", "true");
+    try {
+      await runTransaction(db, async (transaction) => {
+        const ref = doc(db, "games", game.id);
+        const snapshot = await transaction.get(ref);
+        if (!snapshot.exists()) throw new Error("El juego ya no está disponible.");
+        const saved = snapshot.data();
+        if (saved.status !== "owned" || (!game.platform && saved.platform !== acquiredPlatform)) {
+          throw new Error("El estado o la plataforma del juego han cambiado. No se ha deshecho la acción.");
+        }
+        const changes = { status: "wishlist", updatedAt: serverTimestamp() };
+        if (!game.platform) changes.platform = "";
+        transaction.update(ref, changes);
+      });
+      removeAcquisitionNotice(notice, hadFocus);
+      showToast(`«${game.title}» vuelve a «Lo quiero».`);
+    } catch (err) {
+      alert("No se pudo deshacer: " + err.message);
+    } finally {
+      undoButton.disabled = false;
+      dismissButton.disabled = false;
+      undoButton.setAttribute("aria-busy", "false");
+      if (hadFocus && notice.isConnected && document.activeElement === document.body) {
+        undoButton.focus({ preventScroll: true });
+      }
+    }
+  });
+  actions.append(undoButton, dismissButton);
+  notice.append(message, actions);
+  acquisitionNoticesEl.hidden = false;
+  acquisitionNoticesEl.prepend(notice);
+  if (focusUndo && document.activeElement === document.body) {
+    undoButton.focus({ preventScroll: true });
+  }
+}
+
 // Autenticación
 loginBtn.addEventListener("click", async () => {
   loginBtn.disabled = true;
@@ -222,6 +320,12 @@ userAvatar.addEventListener("error", () => {
 });
 
 onAuthStateChanged(auth, (user) => {
+  if (currentUser?.uid !== user?.uid) {
+    acquisitionNoticesEl.replaceChildren();
+    acquisitionNoticesEl.hidden = true;
+    modalAcquisition = null;
+    if (gameModal.open) gameModal.close();
+  }
   currentUser = user;
   loginBtn.hidden = !!user;
   logoutBtn.hidden = !user;
@@ -330,6 +434,7 @@ function createGameCard(game) {
   const card = document.createElement("article");
   card.className = "game-card";
   const checkIcon = `<svg class="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square" stroke-linejoin="miter" aria-hidden="true" focusable="false"><path d="m5 12 4 4L19 6"/></svg>`;
+  const pendingActions = pendingAcquisitions.has(game.id) ? 'disabled aria-busy="true"' : "";
 
   const statusLabel = game.status === "owned" ? "Lo tengo" : "Lo quiero";
   const statusClass = game.status === "owned" ? "badge-owned" : "badge-wishlist";
@@ -349,10 +454,10 @@ function createGameCard(game) {
         <div class="card-actions">
           ${
             game.status === "wishlist"
-              ? `<button type="button" class="btn btn-sm btn-acquire action-acquire" data-id="${game.id}" title="Marcar como conseguido">${checkIcon}<span>Conseguido</span></button>`
+              ? `<button type="button" class="btn btn-sm btn-acquire action-acquire" data-id="${game.id}" title="Marcar como conseguido" ${pendingActions}>${checkIcon}<span>Conseguido</span></button>`
               : ""
           }
-          <button class="btn btn-secondary btn-sm action-edit" data-id="${game.id}">Editar</button>
+          <button class="btn btn-secondary btn-sm action-edit" data-id="${game.id}" ${pendingActions}>Editar</button>
         </div>
       </div>`
     : "";
@@ -533,26 +638,38 @@ gamesListEl.addEventListener("click", async (e) => {
   const acquireBtn = e.target.closest(".action-acquire");
   if (acquireBtn) {
     const id = acquireBtn.dataset.id;
-    const game = allGames.find((game) => game.id === id);
-    if (!game) {
-      showToast("El juego ya no está disponible.");
+    if (pendingAcquisitions.has(id)) return;
+    if (!currentUser) {
+      showToast("Inicia sesión para marcar el juego como conseguido.");
       return;
     }
+    const game = allGames.find((game) => game.id === id);
+    if (!game || game.status !== "wishlist") {
+      showToast("El juego ya no está en «Lo quiero».");
+      return;
+    }
+    const ownerUid = currentUser.uid;
     if (!game.platform) {
       openModal(game);
+      modalAcquisition = { game, ownerUid };
       modalTitle.textContent = "Elegir plataforma";
       statusInput.value = "owned";
       updatePlatformRequirement();
       platformInput.focus();
       return;
     }
+    const hadFocus = document.activeElement === acquireBtn;
+    setAcquisitionPending(id, true);
     try {
       await updateDoc(doc(db, "games", id), {
         status: "owned",
         updatedAt: serverTimestamp()
       });
+      showAcquisitionUndo(game, game.platform, ownerUid, hadFocus);
     } catch (err) {
       alert("Sin permisos de escritura: " + err.message);
+    } finally {
+      setAcquisitionPending(id, false);
     }
     return;
   }
@@ -566,6 +683,8 @@ gamesListEl.addEventListener("click", async (e) => {
 
 // Modal Añadir / Editar + Warning de duplicados
 function openModal(game = null) {
+  modalAcquisition = null;
+  gameSaveBtn.disabled = false;
   duplicateWarning.hidden = true;
   if (game) {
     modalTitle.textContent = "Editar juego";
@@ -635,6 +754,8 @@ gameForm.addEventListener("submit", async (e) => {
   updatePlatformRequirement();
   if (!gameForm.reportValidity()) return;
   const id = gameIdInput.value;
+  const acquisition = modalAcquisition;
+  if (acquisition && pendingAcquisitions.has(id)) return;
   const payload = {
     title: titleInput.value.trim(),
     platform: platformInput.value,
@@ -644,15 +765,27 @@ gameForm.addEventListener("submit", async (e) => {
     updatedAt: serverTimestamp()
   };
 
+  if (acquisition) {
+    setAcquisitionPending(id, true);
+    gameSaveBtn.disabled = true;
+  }
   try {
     if (id) {
       await updateDoc(doc(db, "games", id), payload);
     } else {
       await addDoc(gamesCol, payload);
     }
-    gameModal.close();
+    if (modalAcquisition === acquisition) gameModal.close();
+    if (acquisition && payload.status === "owned") {
+      showAcquisitionUndo(acquisition.game, payload.platform, acquisition.ownerUid, true);
+    }
   } catch (err) {
     alert("No se pudo guardar (comprueba que has entrado con tu cuenta autorizada): " + err.message);
+  } finally {
+    if (acquisition) {
+      setAcquisitionPending(id, false);
+      if (modalAcquisition === acquisition) gameSaveBtn.disabled = false;
+    }
   }
 });
 

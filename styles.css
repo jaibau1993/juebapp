@@ -705,3 +705,67 @@ h1 {
   transform: translateX(-50%) translateY(0);
   opacity: 1;
 }
+
+.acquisition-notices {
+  position: fixed;
+  right: 1rem;
+  bottom: 6rem;
+  width: min(32rem, calc(100% - 2rem));
+  max-height: 40vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  z-index: 40;
+}
+
+.acquisition-notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--owned);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+}
+
+.acquisition-notice p {
+  flex: 1 1 12rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 0.85rem;
+}
+
+.acquisition-notice-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-left: auto;
+}
+
+.undo-acquisition,
+.dismiss-acquisition {
+  min-height: 2.75rem;
+}
+
+.undo-acquisition {
+  color: var(--primary);
+}
+
+.dismiss-acquisition {
+  width: 2.75rem;
+}
+
+.acquisition-notice button:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.acquisition-notice button:disabled {
+  cursor: progress;
+  opacity: 0.6;
+}
