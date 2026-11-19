@@ -32,7 +32,7 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 const gamesCol = collection(db, "games");
 const platformFamilies = {
-  nintendo: ["GB", "GBC", "GBA", "DS/3DS"],
+  nintendo: ["GB", "GBC", "GBA", "DS/3DS", "Switch", "Switch 2"],
   xbox: ["XBOX 360", "XBOX One/X"],
   playstation: ["PS2", "PS4", "PS5"]
 };
