@@ -43,18 +43,13 @@
       <button class="tab" data-status="wishlist">Lo quiero</button>
     </div>
 
-    <div id="platform-filters" class="platform-pills">
-      <button class="pill active" data-platform="ALL">Todas</button>
-      <button class="pill" data-platform="GB">GB</button>
-      <button class="pill" data-platform="GBC">GBC</button>
-      <button class="pill" data-platform="GBA">GBA</button>
-      <button class="pill" data-platform="DS/3DS">DS/3DS</button>
-      <button class="pill" data-platform="PS2">PS2</button>
-      <button class="pill" data-platform="PS4">PS4</button>
-      <button class="pill" data-platform="PS5">PS5</button>
-      <button class="pill" data-platform="XBOX 360">XBOX 360</button>
-      <button class="pill" data-platform="XBOX One/X">XBOX One/X</button>
+    <div id="platform-filters" class="platform-pills" role="group" aria-label="Familias de plataformas">
+      <button type="button" class="pill active" data-family="ALL" aria-pressed="true">Todas</button>
+      <button type="button" class="pill" data-family="nintendo" aria-pressed="false" aria-controls="console-filters">Nintendo</button>
+      <button type="button" class="pill" data-family="xbox" aria-pressed="false" aria-controls="console-filters">Xbox</button>
+      <button type="button" class="pill" data-family="playstation" aria-pressed="false" aria-controls="console-filters">PlayStation</button>
     </div>
+    <div id="console-filters" class="platform-pills console-pills" role="group" aria-label="Consolas" hidden></div>
   </header>
 
   <main class="container">

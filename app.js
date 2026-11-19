@@ -31,11 +31,17 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 const gamesCol = collection(db, "games");
+const platformFamilies = {
+  nintendo: ["GB", "GBC", "GBA", "DS/3DS"],
+  xbox: ["XBOX 360", "XBOX One/X"],
+  playstation: ["PS2", "PS4", "PS5"]
+};
 
 // Estado de la aplicación
 let allGames = [];
 let currentUser = null;
 let filterStatus = "all";
+let filterFamily = "ALL";
 let filterPlatform = "ALL";
 let searchQuery = "";
 
@@ -45,6 +51,8 @@ const emptyStateEl = document.getElementById("empty-state");
 const statsBarEl = document.getElementById("stats-bar");
 const searchInput = document.getElementById("search-input");
 const clearSearchBtn = document.getElementById("clear-search");
+const platformFiltersEl = document.getElementById("platform-filters");
+const consoleFiltersEl = document.getElementById("console-filters");
 
 const gameModal = document.getElementById("game-modal");
 const gameForm = document.getElementById("game-form");
@@ -83,6 +91,12 @@ function escapeHtml(str) {
   const div = document.createElement("div");
   div.textContent = str || "";
   return div.innerHTML;
+}
+
+function getPlatformFamily(platform) {
+  return Object.keys(platformFamilies).find((family) =>
+    platformFamilies[family].includes(platform)
+  );
 }
 
 // Notificaciones Toast
@@ -188,6 +202,7 @@ function renderGames() {
 
   const filtered = allGames.filter((game) => {
     if (filterStatus !== "all" && game.status !== filterStatus) return false;
+    if (filterFamily !== "ALL" && getPlatformFamily(game.platform) !== filterFamily) return false;
     if (filterPlatform !== "ALL" && game.platform !== filterPlatform) return false;
     if (normQuery) {
       const haystack = `${normalize(game.title)} ${normalize(game.notes)}`;
@@ -205,13 +220,8 @@ function renderGames() {
 
     const statusLabel = game.status === "owned" ? "Lo tengo" : "Lo quiero";
     const statusClass = game.status === "owned" ? "badge-owned" : "badge-wishlist";
-    const platformClass = ["GB", "GBC", "GBA", "DS/3DS"].includes(game.platform)
-      ? "badge-nintendo"
-      : ["XBOX 360", "XBOX One/X"].includes(game.platform)
-        ? "badge-xbox"
-        : ["PS2", "PS4", "PS5"].includes(game.platform)
-          ? "badge-playstation"
-          : "";
+    const platformFamily = getPlatformFamily(game.platform);
+    const platformClass = platformFamily ? `badge-${platformFamily}` : "";
     const exceptionBadge =
       game.physicalIntegrity === "exception"
         ? `<span class="badge badge-exception">Excepción</span>`
@@ -271,13 +281,46 @@ document.querySelectorAll(".tab").forEach((tab) => {
   });
 });
 
-document.querySelectorAll(".pill").forEach((pill) => {
-  pill.addEventListener("click", () => {
-    document.querySelectorAll(".pill").forEach((p) => p.classList.remove("active"));
-    pill.classList.add("active");
-    filterPlatform = pill.dataset.platform;
-    renderGames();
+platformFiltersEl.addEventListener("click", (e) => {
+  const pill = e.target.closest("[data-family]");
+  if (!pill) return;
+
+  filterFamily = pill.dataset.family;
+  filterPlatform = "ALL";
+  platformFiltersEl.querySelectorAll(".pill").forEach((button) => {
+    const selected = button === pill;
+    button.classList.toggle("active", selected);
+    button.setAttribute("aria-pressed", String(selected));
   });
+
+  consoleFiltersEl.replaceChildren();
+  consoleFiltersEl.hidden = filterFamily === "ALL";
+  if (filterFamily !== "ALL") {
+    consoleFiltersEl.setAttribute("aria-label", `Consolas de ${pill.textContent}`);
+    ["ALL", ...platformFamilies[filterFamily]].forEach((platform) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = platform === "ALL" ? "pill active" : "pill";
+      button.dataset.platform = platform;
+      button.textContent = platform === "ALL" ? "Todas" : platform;
+      button.setAttribute("aria-pressed", String(platform === "ALL"));
+      consoleFiltersEl.appendChild(button);
+    });
+  }
+  renderGames();
+});
+
+consoleFiltersEl.addEventListener("click", (e) => {
+  const pill = e.target.closest("[data-platform]");
+  if (!pill) return;
+
+  filterPlatform = pill.dataset.platform;
+  consoleFiltersEl.querySelectorAll(".pill").forEach((button) => {
+    const selected = button === pill;
+    button.classList.toggle("active", selected);
+    button.setAttribute("aria-pressed", String(selected));
+  });
+  renderGames();
 });
 
 // Acciones rápidas en tarjetas
@@ -319,7 +362,11 @@ function openModal(game = null) {
     modalTitle.textContent = "Añadir juego";
     gameForm.reset();
     gameIdInput.value = "";
-    if (filterPlatform !== "ALL") platformInput.value = filterPlatform;
+    if (filterPlatform !== "ALL") {
+      platformInput.value = filterPlatform;
+    } else if (filterFamily !== "ALL") {
+      platformInput.value = platformFamilies[filterFamily][0];
+    }
     if (filterStatus !== "all") statusInput.value = filterStatus;
     deleteBtn.hidden = true;
   }
