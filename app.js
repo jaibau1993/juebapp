@@ -321,6 +321,7 @@ function renderGames() {
 function createGameCard(game) {
   const card = document.createElement("article");
   card.className = "game-card";
+  const checkIcon = `<svg class="check-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="square" stroke-linejoin="miter" aria-hidden="true" focusable="false"><path d="m5 12 4 4L19 6"/></svg>`;
 
   const statusLabel = game.status === "owned" ? "Lo tengo" : "Lo quiero";
   const statusClass = game.status === "owned" ? "badge-owned" : "badge-wishlist";
@@ -340,7 +341,7 @@ function createGameCard(game) {
         <div class="card-actions">
           ${
             game.status === "wishlist"
-              ? `<button class="btn btn-primary btn-sm action-acquire" data-id="${game.id}">✓ Ya lo tengo</button>`
+              ? `<button type="button" class="btn btn-sm btn-acquire action-acquire" data-id="${game.id}" title="Marcar como conseguido">${checkIcon}<span>Conseguido</span></button>`
               : ""
           }
           <button class="btn btn-secondary btn-sm action-edit" data-id="${game.id}">Editar</button>
@@ -361,6 +362,11 @@ function createGameCard(game) {
     ${adminButtons}
   `;
 
+  const acquireButton = card.querySelector(".action-acquire");
+  if (acquireButton) {
+    acquireButton.setAttribute("aria-label", `Marcar como conseguido: ${game.title || "Juego"}`);
+  }
+
   Object.entries(gameFlags).forEach(([field, config]) => {
     const active = game[field] === true;
     if (!currentUser && !active) return;
@@ -369,6 +375,7 @@ function createGameCard(game) {
     control.className = `game-flag ${field}-control`;
     control.dataset.flag = field;
     control.classList.toggle("is-active", active);
+    if (field === "played") control.innerHTML = checkIcon;
     if (currentUser) {
       control.type = "button";
       control.classList.add("action-game-flag");
