@@ -22,6 +22,10 @@
   padding: 0;
 }
 
+[hidden] {
+  display: none !important;
+}
+
 body {
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   background: var(--bg);
@@ -413,10 +417,6 @@ h1 {
   font-size: 0.78rem;
   color: var(--text);
   max-width: 145px;
-}
-
-.user-badge[hidden] {
-  display: none;
 }
 
 .user-badge img {

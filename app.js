@@ -59,6 +59,16 @@ const duplicateWarning = document.getElementById("duplicate-warning");
 const deleteBtn = document.getElementById("btn-delete");
 
 const backupModal = document.getElementById("backup-modal");
+const loginBtn = document.getElementById("btn-login");
+const logoutBtn = document.getElementById("btn-logout");
+const userBadge = document.getElementById("user-badge");
+const userAvatar = document.getElementById("user-avatar");
+const userName = document.getElementById("user-name");
+const defaultAvatar =
+  "data:image/svg+xml," +
+  encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><rect width="24" height="24" rx="12" fill="#334155"/><circle cx="12" cy="8" r="4" fill="#38bdf8"/><path d="M4 23v-3a8 8 0 0 1 16 0v3" fill="#38bdf8"/></svg>'
+  );
 
 // Utilidades
 function normalize(text) {
@@ -75,7 +85,6 @@ function escapeHtml(str) {
   return div.innerHTML;
 }
 
-// Autenticación
 // Notificaciones Toast
 let toastTimer = null;
 function showToast(message) {
@@ -90,37 +99,62 @@ function showToast(message) {
 }
 
 // Autenticación
-document.getElementById("btn-login").addEventListener("click", async () => {
+loginBtn.addEventListener("click", async () => {
+  loginBtn.disabled = true;
   try {
     const cred = await signInWithPopup(auth, new GoogleAuthProvider());
     showToast(`Sesión iniciada: ${cred.user.email}`);
   } catch (err) {
     alert("Error al iniciar sesión: " + err.message);
+  } finally {
+    loginBtn.disabled = false;
   }
 });
 
-document.getElementById("btn-logout").addEventListener("click", async () => {
-  await signOut(auth);
-  showToast("Sesión cerrada");
+logoutBtn.addEventListener("click", async () => {
+  logoutBtn.disabled = true;
+  try {
+    await signOut(auth);
+    showToast("Sesión cerrada");
+  } catch (err) {
+    alert("Error al cerrar sesión: " + err.message);
+  } finally {
+    logoutBtn.disabled = false;
+  }
+});
+
+userAvatar.addEventListener("error", () => {
+  console.warn("No se pudo cargar el avatar del perfil.");
+  if (userAvatar.getAttribute("src") === defaultAvatar) {
+    userAvatar.hidden = true;
+  } else {
+    userAvatar.src = defaultAvatar;
+  }
 });
 
 onAuthStateChanged(auth, (user) => {
   currentUser = user;
-  document.getElementById("btn-login").hidden = !!user;
+  loginBtn.hidden = !!user;
+  logoutBtn.hidden = !user;
+  loginBtn.disabled = false;
+  logoutBtn.disabled = false;
+  userBadge.hidden = !user;
   document.querySelectorAll(".admin-only").forEach((el) => {
     el.hidden = !user;
   });
 
+  userAvatar.hidden = false;
   if (user) {
-    const badge = document.getElementById("user-badge");
-    const avatar = document.getElementById("user-avatar");
-    const nameEl = document.getElementById("user-name");
-
-    badge.title = user.email || "";
-    nameEl.textContent = user.displayName ? user.displayName.split(" ")[0] : user.email;
-    avatar.src =
+    userBadge.title = user.email || "";
+    userName.textContent = user.displayName ? user.displayName.split(" ")[0] : user.email;
+    userAvatar.src =
       user.photoURL ||
-      "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2338bdf8'><circle cx='12' cy='12' r='10'/></svg>";
+      user.providerData.find((provider) => provider.providerId === "google.com")?.photoURL ||
+      defaultAvatar;
+  } else {
+    userBadge.removeAttribute("title");
+    userName.textContent = "";
+    userAvatar.removeAttribute("src");
   }
 
   renderGames();
