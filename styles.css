@@ -214,6 +214,21 @@ h1 {
   color: #e2e8f0;
 }
 
+.badge-nintendo {
+  background: #e60012;
+  color: #fff;
+}
+
+.badge-xbox {
+  background: #107c10;
+  color: #fff;
+}
+
+.badge-playstation {
+  background: #003791;
+  color: #fff;
+}
+
 .badge-owned {
   background: rgba(16, 185, 129, 0.18);
   color: #34d399;

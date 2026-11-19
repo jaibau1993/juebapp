@@ -205,6 +205,13 @@ function renderGames() {
 
     const statusLabel = game.status === "owned" ? "Lo tengo" : "Lo quiero";
     const statusClass = game.status === "owned" ? "badge-owned" : "badge-wishlist";
+    const platformClass = ["GB", "GBC", "GBA", "DS/3DS"].includes(game.platform)
+      ? "badge-nintendo"
+      : ["XBOX 360", "XBOX One/X"].includes(game.platform)
+        ? "badge-xbox"
+        : ["PS2", "PS4", "PS5"].includes(game.platform)
+          ? "badge-playstation"
+          : "";
     const exceptionBadge =
       game.physicalIntegrity === "exception"
         ? `<span class="badge badge-exception">Excepción</span>`
@@ -228,7 +235,7 @@ function renderGames() {
       <div class="game-info">
         <div class="game-title">${escapeHtml(game.title)}</div>
         <div class="badges">
-          <span class="badge badge-platform">${escapeHtml(game.platform)}</span>
+          <span class="badge badge-platform ${platformClass}">${escapeHtml(game.platform)}</span>
           <span class="badge ${statusClass}">${statusLabel}</span>
           ${exceptionBadge}
         </div>
