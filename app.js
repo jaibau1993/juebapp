@@ -37,6 +37,20 @@ const platformOrder = new Map(
     .flatMap(({ consoles }) => consoles)
     .map((platform, index) => [platform, index])
 );
+const gameFlags = {
+  favorite: {
+    label: "Favorito",
+    enable: "Añadir a favoritos",
+    disable: "Quitar de favoritos",
+    error: "No se pudo actualizar el favorito"
+  },
+  played: {
+    label: "Jugado",
+    enable: "Marcar como jugado",
+    disable: "Marcar como no jugado",
+    error: "No se pudo actualizar el estado jugado"
+  }
+};
 
 // Estado de la aplicación
 let allGames = [];
@@ -44,8 +58,10 @@ let currentUser = null;
 let filterStatus = "all";
 let filterFamily = "ALL";
 let filterPlatform = "ALL";
+let filterFavorites = false;
+let filterPlayed = "all";
 let searchQuery = "";
-const pendingFavorites = new Set();
+const pendingGameFlags = new Set();
 
 // Referencias DOM
 const gamesListEl = document.getElementById("games-list");
@@ -55,6 +71,8 @@ const searchInput = document.getElementById("search-input");
 const clearSearchBtn = document.getElementById("clear-search");
 const platformFiltersEl = document.getElementById("platform-filters");
 const consoleFiltersEl = document.getElementById("console-filters");
+const favoritesFilterBtn = document.getElementById("filter-favorites");
+const playedFilterEl = document.getElementById("filter-played");
 
 const gameModal = document.getElementById("game-modal");
 const gameForm = document.getElementById("game-form");
@@ -243,6 +261,9 @@ function renderGames() {
 
   const filtered = allGames.filter((game) => {
     if (filterStatus !== "all" && game.status !== filterStatus) return false;
+    if (filterFavorites && game.favorite !== true) return false;
+    if (filterPlayed === "played" && game.played !== true) return false;
+    if (filterPlayed === "unplayed" && game.played === true) return false;
     if (filterFamily !== "ALL" && getPlatformFamily(game.platform) !== filterFamily) return false;
     if (filterPlatform !== "ALL" && game.platform !== filterPlatform) return false;
     if (normQuery) {
@@ -299,13 +320,16 @@ function createGameCard(game) {
     : "";
 
   const adminButtons = currentUser
-    ? `<div class="card-actions">
-        ${
-          game.status === "wishlist"
-            ? `<button class="btn btn-primary btn-sm action-acquire" data-id="${game.id}">✓ Ya lo tengo</button>`
-            : ""
-        }
-        <button class="btn btn-secondary btn-sm action-edit" data-id="${game.id}">Editar</button>
+    ? `<div class="card-toolbar">
+        <div class="game-flags"></div>
+        <div class="card-actions">
+          ${
+            game.status === "wishlist"
+              ? `<button class="btn btn-primary btn-sm action-acquire" data-id="${game.id}">✓ Ya lo tengo</button>`
+              : ""
+          }
+          <button class="btn btn-secondary btn-sm action-edit" data-id="${game.id}">Editar</button>
+        </div>
       </div>`
     : "";
 
@@ -322,29 +346,32 @@ function createGameCard(game) {
     ${adminButtons}
   `;
 
-  const isFavorite = game.favorite === true;
-  if (currentUser || isFavorite) {
+  Object.entries(gameFlags).forEach(([field, config]) => {
+    const active = game[field] === true;
+    if (!currentUser && !active) return;
+
     const control = document.createElement(currentUser ? "button" : "span");
-    control.className = "favorite-control";
-    control.classList.toggle("is-favorite", isFavorite);
+    control.className = `game-flag ${field}-control`;
+    control.dataset.flag = field;
+    control.classList.toggle("is-active", active);
     if (currentUser) {
       control.type = "button";
-      control.classList.add("action-favorite");
+      control.classList.add("action-game-flag");
       control.dataset.id = game.id;
-      control.title = isFavorite ? "Quitar de favoritos" : "Añadir a favoritos";
+      control.title = active ? config.disable : config.enable;
       control.setAttribute("aria-label", `${control.title}: ${game.title || "Juego"}`);
-      control.setAttribute("aria-pressed", String(isFavorite));
-      control.disabled = pendingFavorites.has(game.id);
+      control.setAttribute("aria-pressed", String(active));
+      control.disabled = pendingGameFlags.has(`${game.id}:${field}`);
       control.setAttribute("aria-busy", String(control.disabled));
-      card.querySelector(".card-actions").prepend(control);
+      card.querySelector(".game-flags").appendChild(control);
     } else {
-      control.classList.add("favorite-indicator");
-      control.title = "Favorito";
+      control.classList.add("flag-indicator");
+      control.title = config.label;
       control.setAttribute("role", "img");
-      control.setAttribute("aria-label", "Favorito");
-      card.appendChild(control);
+      control.setAttribute("aria-label", config.label);
+      card.querySelector(".badges").appendChild(control);
     }
-  }
+  });
 
   return card;
 }
@@ -360,6 +387,19 @@ clearSearchBtn.addEventListener("click", () => {
   searchQuery = "";
   searchInput.value = "";
   clearSearchBtn.hidden = true;
+  renderGames();
+});
+
+favoritesFilterBtn.addEventListener("click", () => {
+  filterFavorites = !filterFavorites;
+  favoritesFilterBtn.classList.toggle("active", filterFavorites);
+  favoritesFilterBtn.setAttribute("aria-pressed", String(filterFavorites));
+  renderGames();
+});
+
+playedFilterEl.addEventListener("change", () => {
+  filterPlayed = playedFilterEl.value;
+  playedFilterEl.classList.toggle("is-active", filterPlayed !== "all");
   renderGames();
 });
 
@@ -412,12 +452,18 @@ consoleFiltersEl.addEventListener("click", (e) => {
 
 // Acciones rápidas en tarjetas
 gamesListEl.addEventListener("click", async (e) => {
-  const favoriteBtn = e.target.closest(".action-favorite");
-  if (favoriteBtn) {
-    const id = favoriteBtn.dataset.id;
-    if (pendingFavorites.has(id)) return;
+  const flagBtn = e.target.closest(".action-game-flag");
+  if (flagBtn) {
+    const id = flagBtn.dataset.id;
+    const field = flagBtn.dataset.flag;
+    if (!Object.prototype.hasOwnProperty.call(gameFlags, field)) {
+      showToast("Acción no disponible.");
+      return;
+    }
+    const pendingKey = `${id}:${field}`;
+    if (pendingGameFlags.has(pendingKey)) return;
     if (!currentUser) {
-      showToast("Inicia sesión para cambiar favoritos.");
+      showToast("Inicia sesión para cambiar este estado.");
       return;
     }
     const game = allGames.find((game) => game.id === id);
@@ -426,27 +472,29 @@ gamesListEl.addEventListener("click", async (e) => {
       return;
     }
 
-    const hadFocus = document.activeElement === favoriteBtn;
-    pendingFavorites.add(id);
-    favoriteBtn.disabled = true;
-    favoriteBtn.setAttribute("aria-busy", "true");
+    const hadFocus = document.activeElement === flagBtn;
+    pendingGameFlags.add(pendingKey);
+    flagBtn.disabled = true;
+    flagBtn.setAttribute("aria-busy", "true");
     try {
       await updateDoc(doc(db, "games", id), {
-        favorite: game.favorite !== true,
+        [field]: game[field] !== true,
         updatedAt: serverTimestamp()
       });
     } catch (err) {
-      alert("No se pudo actualizar el favorito: " + err.message);
+      alert(gameFlags[field].error + ": " + err.message);
     } finally {
-      pendingFavorites.delete(id);
-      gamesListEl.querySelectorAll(".action-favorite").forEach((button) => {
-        if (button.dataset.id !== id) return;
-        button.disabled = false;
-        button.setAttribute("aria-busy", "false");
-        if (hadFocus && (document.activeElement === document.body || document.activeElement === favoriteBtn)) {
-          button.focus({ preventScroll: true });
-        }
-      });
+      pendingGameFlags.delete(pendingKey);
+      const currentButton = Array.from(gamesListEl.querySelectorAll(".action-game-flag"))
+        .find((button) => button.dataset.id === id && button.dataset.flag === field);
+      if (currentButton) {
+        currentButton.disabled = false;
+        currentButton.setAttribute("aria-busy", "false");
+      }
+      if (hadFocus && (document.activeElement === document.body || document.activeElement === flagBtn)) {
+        const focusTarget = currentButton || (field === "favorite" ? favoritesFilterBtn : playedFilterEl);
+        focusTarget.focus({ preventScroll: true });
+      }
     }
     return;
   }
@@ -577,11 +625,12 @@ document.getElementById("btn-backup").addEventListener("click", () => {
 document.getElementById("close-backup").addEventListener("click", () => backupModal.close());
 
 document.getElementById("btn-export-json").addEventListener("click", () => {
-  const cleanData = allGames.map(({ title, platform, status, physicalIntegrity, notes, favorite }) => ({
+  const cleanData = allGames.map(({ title, platform, status, physicalIntegrity, notes, favorite, played }) => ({
     title,
     platform,
     status,
     favorite: favorite === true,
+    played: played === true,
     physicalIntegrity: physicalIntegrity || "complete",
     notes: notes || ""
   }));
@@ -612,6 +661,7 @@ document.getElementById("input-import-json").addEventListener("change", async (e
         platform: String(item.platform).trim(),
         status: item.status === "wishlist" ? "wishlist" : "owned",
         favorite: item.favorite === true,
+        played: item.played === true,
         physicalIntegrity: item.physicalIntegrity === "exception" ? "exception" : "complete",
         notes: item.notes ? String(item.notes).trim() : "",
         updatedAt: serverTimestamp()

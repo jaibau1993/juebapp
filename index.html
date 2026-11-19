@@ -43,6 +43,15 @@
       <button class="tab" data-status="wishlist">Lo quiero</button>
     </div>
 
+    <div class="collection-filters" role="group" aria-label="Favoritos y juegos jugados">
+      <button type="button" id="filter-favorites" class="pill favorites-filter" aria-pressed="false" aria-label="Solo favoritos">Favoritos</button>
+      <select id="filter-played" class="played-filter" aria-label="Filtrar por jugados o sin jugar">
+        <option value="all">Jugado: todos</option>
+        <option value="played">Jugados</option>
+        <option value="unplayed">Sin jugar</option>
+      </select>
+    </div>
+
     <div id="platform-filters" class="platform-pills" role="group" aria-label="Familias de plataformas"></div>
     <div id="console-filters" class="platform-pills console-pills" role="group" aria-label="Consolas" hidden></div>
   </header>
@@ -115,7 +124,7 @@
       <h2>Copia de seguridad e importación</h2>
       <button type="button" id="close-backup" class="close-btn">×</button>
     </div>
-    <p class="help-text">Descarga toda tu colección en JSON, incluidos los favoritos, o importa un listado masivo con formato compatible.</p>
+    <p class="help-text">Descarga toda tu colección en JSON, incluidos los favoritos y el estado jugado, o importa un listado masivo con formato compatible.</p>
     <div class="backup-actions">
       <button type="button" id="btn-export-json" class="btn btn-secondary">Descargar copia (.json)</button>
       <label class="btn btn-primary file-label">
