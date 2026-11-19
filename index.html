@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0f172a" />
+  <title>Mi Colección Física</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎮</text></svg>" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-top">
+      <div>
+        <h1>Colección Física</h1>
+        <p id="stats-bar" class="stats-bar">Cargando catálogo...</p>
+      </div>
+      <div class="auth-controls">
+        <button id="btn-backup" class="btn btn-ghost admin-only" title="Exportar / Importar JSON" hidden>Backup</button>
+        <button id="btn-login" class="btn btn-secondary">Entrar</button>
+        <button id="btn-logout" class="btn btn-ghost admin-only" hidden>Salir</button>
+      </div>
+    </div>
+
+    <div class="search-wrapper">
+      <input
+        type="search"
+        id="search-input"
+        placeholder="Buscar en todas las plataformas..."
+        autocomplete="off"
+      />
+      <button id="clear-search" class="clear-btn" aria-label="Limpiar búsqueda" hidden>×</button>
+    </div>
+
+    <div class="status-tabs" role="tablist">
+      <button class="tab active" data-status="all">Todos</button>
+      <button class="tab" data-status="owned">Lo tengo</button>
+      <button class="tab" data-status="wishlist">Lo quiero</button>
+    </div>
+
+    <div id="platform-filters" class="platform-pills">
+      <button class="pill active" data-platform="ALL">Todas</button>
+      <button class="pill" data-platform="GB">GB</button>
+      <button class="pill" data-platform="GBC">GBC</button>
+      <button class="pill" data-platform="GBA">GBA</button>
+      <button class="pill" data-platform="DS/3DS">DS/3DS</button>
+      <button class="pill" data-platform="PS2">PS2</button>
+      <button class="pill" data-platform="PS4">PS4</button>
+      <button class="pill" data-platform="PS5">PS5</button>
+      <button class="pill" data-platform="XBOX 360">XBOX 360</button>
+      <button class="pill" data-platform="XBOX One/X">XBOX One/X</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <div id="games-list" class="games-list"></div>
+    <p id="empty-state" class="empty-state" hidden>No hay juegos que coincidan con los filtros actuales.</p>
+  </main>
+
+  <button id="btn-add" class="fab admin-only" aria-label="Añadir juego" hidden>+</button>
+
+  <!-- Modal Añadir / Editar -->
+  <dialog id="game-modal" class="modal">
+    <form id="game-form" method="dialog">
+      <div class="modal-header">
+        <h2 id="modal-title">Añadir juego</h2>
+        <button type="button" id="close-modal" class="close-btn">×</button>
+      </div>
+
+      <input type="hidden" id="game-id" />
+
+      <label class="field">
+        <span>Título del juego *</span>
+        <input type="text" id="field-title" required placeholder="Ej. Metroid Prime" autocomplete="off" />
+      </label>
+
+      <div id="duplicate-warning" class="warning-box" hidden></div>
+
+      <div class="field-row">
+        <label class="field">
+          <span>Plataforma *</span>
+          <select id="field-platform" required>
+            <option value="GB">GB</option>
+            <option value="GBC">GBC</option>
+            <option value="GBA">GBA</option>
+            <option value="DS/3DS">DS/3DS</option>
+            <option value="PS2">PS2</option>
+            <option value="PS4">PS4</option>
+            <option value="PS5" selected>PS5</option>
+            <option value="XBOX 360">XBOX 360</option>
+            <option value="XBOX One/X">XBOX One/X</option>
+          </select>
+        </label>
+
+        <label class="field">
+          <span>Estado *</span>
+          <select id="field-status" required>
+            <option value="owned">Lo tengo</option>
+            <option value="wishlist">Lo quiero</option>
+          </select>
+        </label>
+      </div>
+
+      <label class="field">
+        <span>Integridad física</span>
+        <select id="field-integrity">
+          <option value="complete">Completo en soporte (sin descargas obligatorias)</option>
+          <option value="exception">Excepción asumida</option>
+        </select>
+      </label>
+
+      <label class="field">
+        <span>Notas (opcional)</span>
+        <input type="text" id="field-notes" placeholder="Ej. CIB, solo cartucho, edición especial..." />
+      </label>
+
+      <div class="modal-actions">
+        <button type="button" id="btn-delete" class="btn btn-danger" hidden>Eliminar</button>
+        <div class="right-actions">
+          <button type="button" id="cancel-modal" class="btn btn-ghost">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Guardar</button>
+        </div>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Modal Backup / Importación -->
+  <dialog id="backup-modal" class="modal">
+    <div class="modal-header">
+      <h2>Copia de seguridad e importación</h2>
+      <button type="button" id="close-backup" class="close-btn">×</button>
+    </div>
+    <p class="help-text">Descarga toda tu colección en JSON o importa un listado masivo con formato compatible.</p>
+    <div class="backup-actions">
+      <button type="button" id="btn-export-json" class="btn btn-secondary">Descargar copia (.json)</button>
+      <label class="btn btn-primary file-label">
+        Importar archivo (.json)
+        <input type="file" id="input-import-json" accept=".json" hidden />
+      </label>
+    </div>
+    <p id="import-feedback" class="help-text"></p>
+  </dialog>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>
