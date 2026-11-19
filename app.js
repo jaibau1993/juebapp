@@ -1,3 +1,4 @@
+import { platformFamilies, defaultPlatform } from "./platforms.js";
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
 import {
   getAuth,
@@ -31,13 +32,10 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 const gamesCol = collection(db, "games");
-const platformFamilies = {
-  nintendo: ["GB", "GBC", "GBA", "DS/3DS", "Switch", "Switch 2"],
-  xbox: ["XBOX 360", "XBOX One/X"],
-  playstation: ["PS2", "PS4", "PS5"]
-};
 const platformOrder = new Map(
-  Object.values(platformFamilies).flat().map((platform, index) => [platform, index])
+  Object.values(platformFamilies)
+    .flatMap(({ consoles }) => consoles)
+    .map((platform, index) => [platform, index])
 );
 
 // Estado de la aplicación
@@ -98,9 +96,45 @@ function escapeHtml(str) {
 
 function getPlatformFamily(platform) {
   return Object.keys(platformFamilies).find((family) =>
-    platformFamilies[family].includes(platform)
+    platformFamilies[family].consoles.includes(platform)
   );
 }
+
+function createFilterPill(label, selected) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = selected ? "pill active" : "pill";
+  button.textContent = label;
+  button.setAttribute("aria-pressed", String(selected));
+  return button;
+}
+
+function initializePlatformControls() {
+  const allButton = createFilterPill("Todas", true);
+  allButton.dataset.family = "ALL";
+  platformFiltersEl.replaceChildren(allButton);
+  platformInput.replaceChildren();
+
+  Object.entries(platformFamilies).forEach(([family, { label, consoles }]) => {
+    const button = createFilterPill(label, false);
+    button.dataset.family = family;
+    button.setAttribute("aria-controls", "console-filters");
+    platformFiltersEl.appendChild(button);
+
+    const group = document.createElement("optgroup");
+    group.label = label;
+    consoles.forEach((platform) => {
+      const option = document.createElement("option");
+      option.value = platform;
+      option.textContent = platform;
+      option.defaultSelected = platform === defaultPlatform;
+      group.appendChild(option);
+    });
+    platformInput.appendChild(group);
+  });
+}
+
+initializePlatformControls();
 
 // Notificaciones Toast
 let toastTimer = null;
@@ -329,13 +363,9 @@ platformFiltersEl.addEventListener("click", (e) => {
   consoleFiltersEl.hidden = filterFamily === "ALL";
   if (filterFamily !== "ALL") {
     consoleFiltersEl.setAttribute("aria-label", `Consolas de ${pill.textContent}`);
-    ["ALL", ...platformFamilies[filterFamily]].forEach((platform) => {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = platform === "ALL" ? "pill active" : "pill";
+    ["ALL", ...platformFamilies[filterFamily].consoles].forEach((platform) => {
+      const button = createFilterPill(platform === "ALL" ? "Todas" : platform, platform === "ALL");
       button.dataset.platform = platform;
-      button.textContent = platform === "ALL" ? "Todas" : platform;
-      button.setAttribute("aria-pressed", String(platform === "ALL"));
       consoleFiltersEl.appendChild(button);
     });
   }
@@ -397,7 +427,7 @@ function openModal(game = null) {
     if (filterPlatform !== "ALL") {
       platformInput.value = filterPlatform;
     } else if (filterFamily !== "ALL") {
-      platformInput.value = platformFamilies[filterFamily][0];
+      platformInput.value = platformFamilies[filterFamily].consoles[0];
     }
     if (filterStatus !== "all") statusInput.value = filterStatus;
     deleteBtn.hidden = true;
