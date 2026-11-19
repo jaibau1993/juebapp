@@ -36,6 +36,9 @@ const platformFamilies = {
   xbox: ["XBOX 360", "XBOX One/X"],
   playstation: ["PS2", "PS4", "PS5"]
 };
+const platformOrder = new Map(
+  Object.values(platformFamilies).flat().map((platform, index) => [platform, index])
+);
 
 // Estado de la aplicación
 let allGames = [];
@@ -180,6 +183,9 @@ onSnapshot(
   (snapshot) => {
     allGames = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
     allGames.sort((a, b) =>
+      (platformOrder.get(a.platform) ?? platformOrder.size) -
+        (platformOrder.get(b.platform) ?? platformOrder.size) ||
+      (a.platform || "").localeCompare(b.platform || "", "es", { sensitivity: "base" }) ||
       (a.title || "").localeCompare(b.title || "", "es", { sensitivity: "base" })
     );
     updateStats();
