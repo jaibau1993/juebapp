@@ -17,9 +17,13 @@
         <p id="stats-bar" class="stats-bar">Cargando catálogo...</p>
       </div>
       <div class="auth-controls">
-        <button id="btn-backup" class="btn btn-ghost admin-only" title="Exportar / Importar JSON" hidden>Backup</button>
+        <div id="user-badge" class="user-badge admin-only" hidden>
+          <img id="user-avatar" src="" alt="Avatar" referrerpolicy="no-referrer" />
+          <span id="user-name"></span>
+        </div>
+        <button id="btn-backup" class="btn btn-ghost btn-sm admin-only" title="Exportar / Importar JSON" hidden>Backup</button>
         <button id="btn-login" class="btn btn-secondary">Entrar</button>
-        <button id="btn-logout" class="btn btn-ghost admin-only" hidden>Salir</button>
+        <button id="btn-logout" class="btn btn-ghost btn-sm admin-only" hidden>Salir</button>
       </div>
     </div>
 
@@ -142,6 +146,7 @@
     <p id="import-feedback" class="help-text"></p>
   </dialog>
 
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script type="module" src="app.js"></script>
 </body>
 </html>

@@ -76,15 +76,33 @@ function escapeHtml(str) {
 }
 
 // Autenticación
+// Notificaciones Toast
+let toastTimer = null;
+function showToast(message) {
+  const toastEl = document.getElementById("toast");
+  if (!toastEl) return;
+  toastEl.textContent = message;
+  toastEl.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
+    toastEl.classList.remove("show");
+  }, 3000);
+}
+
+// Autenticación
 document.getElementById("btn-login").addEventListener("click", async () => {
   try {
-    await signInWithPopup(auth, new GoogleAuthProvider());
+    const cred = await signInWithPopup(auth, new GoogleAuthProvider());
+    showToast(`Sesión iniciada: ${cred.user.email}`);
   } catch (err) {
     alert("Error al iniciar sesión: " + err.message);
   }
 });
 
-document.getElementById("btn-logout").addEventListener("click", () => signOut(auth));
+document.getElementById("btn-logout").addEventListener("click", async () => {
+  await signOut(auth);
+  showToast("Sesión cerrada");
+});
 
 onAuthStateChanged(auth, (user) => {
   currentUser = user;
@@ -92,6 +110,19 @@ onAuthStateChanged(auth, (user) => {
   document.querySelectorAll(".admin-only").forEach((el) => {
     el.hidden = !user;
   });
+
+  if (user) {
+    const badge = document.getElementById("user-badge");
+    const avatar = document.getElementById("user-avatar");
+    const nameEl = document.getElementById("user-name");
+
+    badge.title = user.email || "";
+    nameEl.textContent = user.displayName ? user.displayName.split(" ")[0] : user.email;
+    avatar.src =
+      user.photoURL ||
+      "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2338bdf8'><circle cx='12' cy='12' r='10'/></svg>";
+  }
+
   renderGames();
 });
 
